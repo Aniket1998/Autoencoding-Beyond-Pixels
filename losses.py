@@ -47,9 +47,9 @@ def discriminator_least_squares_loss(d_real, d_reconstructed,
     return 0.5 * reduce((d_real - b) ** 2 + (d_generated - a) ** 2 +
                         (d_reconstructed - a) ** 2, reduction)
 
+
 # EXPERIMENTAL
 def decoder_least_squares_loss(d_reconstructed, d_generated,
                                c=1.0, reduction='elementwise_mean'):
     return 0.5 * reduce((d_reconstructed - c) ** 2 +
                         (d_generated - c) ** 2, reduction)
-
