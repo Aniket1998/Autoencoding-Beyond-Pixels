@@ -19,7 +19,6 @@ def kl_loss(mu, logvar, reduction='elementwise_mean'):
 def log_loss(dl_original, dl_recon, reduction='elementwise_mean'):
     dist = ds.Normal(loc=dl_recon, scale=torch.ones_like(dl_recon))
     lp = dist.log_prob(dl_original)
-    print(lp.shape)
     return reduce(lp, reduction)
 
 

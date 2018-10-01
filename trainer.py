@@ -1,4 +1,5 @@
 import torch
+from PIL import Image
 import torchvision
 import torchvision.transforms as T
 from model import *
@@ -9,26 +10,38 @@ class Trainer(object):
     def __init__(self, device, dataloader, enc, dec, dis, optimEnc,
                  optimDec, optimDis, loss_prior, loss_log_likelihood,
                  loss_gan_gen, loss_gan_dis, encoding_dim, gamma,
-                 epoch, checkpoint, recon_img, recon_path):
+                 epoch, checkpoint, sample_size, sample_path, recon_img, recon_path):
         self.device = device
+        self.dataloader = dataloader
+
         self.encoder = enc
         self.decoder = dec
-        self.dataloader = dataloader
         self.discriminator = dis
+
         self.optimEnc = optimEnc
         self.optimDec = optimDec
         self.optimDis = optimDis
+
         self.kl_loss = loss_prior
         self.loss_llike = loss_log_likelihood
         self.loss_gan_gen = loss_gan_gen
         self.loss_gan_dis = loss_gan_dis
+
         self.start_epoch = 0
         self.num_epochs = epoch
-        self.pth = checkpoint
         self.encoding_dim = encoding_dim
         self.gamma = gamma
-        self.recon_img = recon_img
+
+        self.pth = checkpoint
+        
+        self.sample_path = sample_path
+        self.test_z = torch.randn(sample_size, encoding_dim, device=device)
+
         self.recon_path = recon_path
+        img = Image.open(recon_img)
+        transform = T.Compose([T.Resize((64, 64)), T.ToTensor(), T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        self.recon_img = transform(img)
+        self.recon_img = self.recon_img.view(self.recon_img.size(0) * self.recon_img.size(1) * self.recon_img.size(2))
 
     def save_model(self, epoch):
         torch.save({
@@ -58,6 +71,13 @@ class Trainer(object):
                   format(self.checkpoints))
             self.start_epoch = 0
 
+    def recon_img(self, epoch):
+        z, _, _ = self.encoder(self.recon_img)
+        torchvision.utils.save_image(self.decoder(z).squeeze(0), self.recon_path + '/epoch%d.png' % epoch)
+
+    def random_sample(self, epoch):
+        torchvision.utils.save_image(self.decoder(z), self.sample_path + '/epoch%d.png' % epoch, nrow=8)
+
     def train_model(self):
         self.encoder.train()
         self.decoder.train()
@@ -68,8 +88,8 @@ class Trainer(object):
             l_dec = 0.0
             l_dis = 0.0
             for i, data in enumerate(self.dataloader, 1):
-                data = data.to(self.device)
-                x, labels = data
+                x,_ = data
+                x = x.to(self.device)
 
                 z, mu, logvar = self.encoder(x)
                 x_recon = self.decoder(z)
@@ -90,19 +110,19 @@ class Trainer(object):
 
                 self.optimEnc.zero_grad()
                 L_encoder = self.kl_loss(mu, logvar) + self.loss_llike(dl_original, dl_recon)
-                L_encoder.backward()
+                L_encoder.backward(retain_graph=True)
                 self.optimEnc.step()
                 l_enc += L_encoder.item()
 
                 self.optimDec.zero_grad()
                 L_decoder = self.gamma * self.loss_llike(dl_original, dl_recon) + self.loss_gan_gen(d_recon, d_generated)
-                L_decoder.backward()
+                L_decoder.backward(retain_graph=True)
                 self.optimDec.step()
                 l_dec += L_decoder.item()
 
                 self.optimDis.zero_grad()
                 L_discriminator = self.loss_gan_dis(d_original, d_recon, d_generated)
-                L_discriminator.backward()
+                L_discriminator.backward(retain_graph=True)
                 self.optimDis.step()
                 l_dis = L_discriminator.item()
             
