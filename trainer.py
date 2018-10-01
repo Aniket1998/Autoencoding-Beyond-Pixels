@@ -1,4 +1,6 @@
 import torch
+import torchvision
+import torchvision.transforms as T
 from model import *
 from losses import *
 
@@ -6,7 +8,8 @@ from losses import *
 class Trainer(object):
     def __init__(self, device, dataloader, enc, dec, dis, optimEnc,
                  optimDec, optimDis, loss_prior, loss_log_likelihood,
-                 loss_gan_gen, loss_gan_dis, epoch, checkpoint):
+                 loss_gan_gen, loss_gan_dis, encoding_dim, gamma,
+                 epoch, checkpoint, recon_img, recon_path):
         self.device = device
         self.encoder = enc
         self.decoder = dec
@@ -22,6 +25,10 @@ class Trainer(object):
         self.start_epoch = 0
         self.num_epochs = epoch
         self.pth = checkpoint
+        self.encoding_dim = encoding_dim
+        self.gamma = gamma
+        self.recon_img = recon_img
+        self.recon_path = recon_path
 
     def save_model(self, epoch):
         torch.save({
@@ -51,17 +58,61 @@ class Trainer(object):
                   format(self.checkpoints))
             self.start_epoch = 0
 
-    def train_model():
+    def train_model(self):
         self.encoder.train()
         self.decoder.train()
         self.discriminator.train()
         for epoch in range(self.start_epoch, self.num_epochs):
             print("Running Epoch {}".format(epoch + 1))
+            l_enc = 0.0
+            l_dec = 0.0
+            l_dis = 0.0
             for i, data in enumerate(self.dataloader, 1):
-                data = data.to(device)
+                data = data.to(self.device)
                 x, labels = data
-                z, mu, logvar = self.encoder(x)
-                L_prior = self.loss_prior(mu, logvar)
-                x_recon = self.decoder(z)
-                L_llike = self.loss_llike()
 
+                z, mu, logvar = self.encoder(x)
+                x_recon = self.decoder(z)
+                dl_original, d_original = self.discriminator(x)
+                dl_recon, d_recon = self.discriminator(x_recon.detach())
+                zp = torch.randn(x.size(0), self.encoding_dim, device=self.device)
+                xp = self.decoder(zp)
+                _, d_generated = self.discriminator(xp.detach())
+
+                # TODO: Confirm that no unwanted gradient accumulation occurs
+                # L_prior = self.kl_loss(mu, logvar)
+                # L_llike = self.loss_llike(dl_original, dl_recon)
+                # L_generator = self.loss_gan_gen(d_recon, d_generated)
+                # L_discriminator = self.loss_gan_dis(d_original, d_recon, d_generated)
+
+                # L_encoder = L_prior + L_llike
+                # L_decoder = self.gamma * L_llike + L_generator
+
+                self.optimEnc.zero_grad()
+                L_encoder = self.kl_loss(mu, logvar) + self.loss_llike(dl_original, dl_recon)
+                L_encoder.backward()
+                self.optimEnc.step()
+                l_enc += L_encoder.item()
+
+                self.optimDec.zero_grad()
+                L_decoder = self.gamma * self.loss_llike(dl_original, dl_recon) + self.loss_gan_gen(d_recon, d_generated)
+                L_decoder.backward()
+                self.optimDec.step()
+                l_dec += L_decoder.item()
+
+                self.optimDis.zero_grad()
+                L_discriminator = self.loss_gan_dis(d_original, d_recon, d_generated)
+                L_discriminator.backward()
+                self.optimDis.step()
+                l_dis = L_discriminator.item()
+            
+            self.save_model(epoch)
+            self.encoder.eval()
+            self.decoder.eval()
+            self.discriminator.eval()
+            print('Epoch {} => Mean Encoder Loss : {} Mean Decoder Loss {} Mean Discriminator Loss {}'.format(epoch, l_enc/i, l_dec/i, l_dis/i))
+            self.reconstruct(epoch)
+            self.random_sample(epoch)
+            self.encoder.train()
+            self.decoder.train()
+            self.discriminator.train()
