@@ -20,7 +20,7 @@ class Trainer(object):
         self.loss_gan_gen = loss_gan_gen
         self.loss_gan_dis = loss_gan_dis
         self.start_epoch = 0
-        self.num_epochs = 0
+        self.num_epochs = epoch
         self.pth = checkpoint
 
     def save_model(self, epoch):
@@ -50,3 +50,18 @@ class Trainer(object):
             print("No Checkpoint Exists At '{}'. Start Fresh Training".
                   format(self.checkpoints))
             self.start_epoch = 0
+
+    def train_model():
+        self.encoder.train()
+        self.decoder.train()
+        self.discriminator.train()
+        for epoch in range(self.start_epoch, self.num_epochs):
+            print("Running Epoch {}".format(epoch + 1))
+            for i, data in enumerate(self.dataloader, 1):
+                data = data.to(device)
+                x, labels = data
+                z, mu, logvar = self.encoder(x)
+                L_prior = self.loss_prior(mu, logvar)
+                x_recon = self.decoder(z)
+                L_llike = self.loss_llike()
+
