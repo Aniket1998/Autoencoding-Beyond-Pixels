@@ -63,4 +63,5 @@ class Discriminator(nn.Module):
 
     def forward(self, x):
         x = self.conv(x)
-        return self.fc(x.view(-1, x.size(1) * x.size(2) * x.size(3)))
+        x = x.view(-1, x.size(1) * x.size(2) * x.size(3))
+        return x, self.fc(x)
