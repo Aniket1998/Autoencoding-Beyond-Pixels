@@ -7,7 +7,7 @@ import model
 import losses
 import trainer
 
-transforms = T.Compose([T.Resize((64, 64)), T.ToTensor(), T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+transforms = T.Compose([T.Scale((64, 64)), T.ToTensor(), T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 celebA = datasets.ImageFolder('./dataset', transform=transforms)
 dataloader = utils.data.DataLoader(celebA, batch_size=64, shuffle=True, num_workers=4)
 
@@ -20,9 +20,9 @@ encoder.to(device)
 decoder.to(device)
 discriminator.to(device)
 
-optimEnc = optim.Adam(encoder.parameters(), 0.0001)
-optimDec = optim.Adam(decoder.parameters(), 0.0001)
-optimDis = optim.Adam(discriminator.parameters(), 0.0001)
+optimEnc = optim.Adam(encoder.parameters(), 0.0002)
+optimDec = optim.Adam(decoder.parameters(), 0.0002)
+optimDis = optim.SGD(discriminator.parameters(), 0.1)
 tr = trainer.Trainer(device, dataloader, encoder, decoder, discriminator, 
                      optimEnc, optimDec, optimDis,
                      losses.kl_loss, losses.log_loss, losses.decoder_minimax_loss, losses.discriminator_minimax_loss,
