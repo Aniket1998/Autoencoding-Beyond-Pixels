@@ -18,18 +18,18 @@ def kl_loss(mu, logvar, reduction='elementwise_mean'):
 
 def log_loss(dl_original, dl_recon, reduction='elementwise_mean'):
     dist = ds.Normal(loc=dl_recon, scale=torch.ones_like(dl_recon))
-    lp = dist.log_prob(dl_original)
+    lp = -1.0 * dist.log_prob(dl_original)
     return reduce(lp, reduction)
 
 
 def discriminator_minimax_loss(d_real, d_reconstructed,
                                d_generated, reduction='elementwise_mean'):
-    return reduce(torch.log(d_real) + torch.log(1 - d_reconstructed)
-                  + torch.log(1 - d_generated), reduction)
+    return reduce(-(torch.log(d_real) + torch.log(1 - d_reconstructed)
+                  + torch.log(1 - d_generated)), reduction)
 
 
 def decoder_minimax_loss(d_reconstructed, d_generated,
-                         minimax=True, reduction='elementwise_mean'):
+                         minimax=False, reduction='elementwise_mean'):
     if minimax:
         return reduce(torch.log(1 - d_reconstructed) +
                       torch.log(1 - d_generated), reduction)

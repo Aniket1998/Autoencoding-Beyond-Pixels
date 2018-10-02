@@ -39,9 +39,8 @@ class Trainer(object):
 
         self.recon_path = recon_path
         img = Image.open(recon_img)
-        transform = T.Compose([T.Resize((64, 64)), T.ToTensor(), T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-        self.recon_img = transform(img)
-        self.recon_img = self.recon_img.view(self.recon_img.size(0) * self.recon_img.size(1) * self.recon_img.size(2))
+        transform = T.Compose([T.Scale((64, 64)), T.ToTensor(), T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        self.recon_img = transform(img).unsqueeze(0).to(device)
 
     def save_model(self, epoch):
         torch.save({
@@ -71,12 +70,12 @@ class Trainer(object):
                   format(self.checkpoints))
             self.start_epoch = 0
 
-    def recon_img(self, epoch):
+    def reconstruct(self, epoch):
         z, _, _ = self.encoder(self.recon_img)
         torchvision.utils.save_image(self.decoder(z).squeeze(0), self.recon_path + '/epoch%d.png' % epoch)
 
     def random_sample(self, epoch):
-        torchvision.utils.save_image(self.decoder(z), self.sample_path + '/epoch%d.png' % epoch, nrow=8)
+        torchvision.utils.save_image(self.decoder(self.test_z), self.sample_path + '/epoch%d.png' % epoch, nrow=8)
 
     def train_model(self):
         self.encoder.train()
@@ -130,7 +129,7 @@ class Trainer(object):
             self.encoder.eval()
             self.decoder.eval()
             self.discriminator.eval()
-            print('Epoch {} => Mean Encoder Loss : {} Mean Decoder Loss {} Mean Discriminator Loss {}'.format(epoch, l_enc/i, l_dec/i, l_dis/i))
+            print('Epoch {} => Mean Encoder Loss : {} Mean Decoder Loss {} Mean Discriminator Loss {}'.format(epoch + 1, l_enc/i, l_dec/i, l_dis/i))
             self.reconstruct(epoch)
             self.random_sample(epoch)
             self.encoder.train()
