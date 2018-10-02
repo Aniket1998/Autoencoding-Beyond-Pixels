@@ -100,29 +100,29 @@ class Trainer(object):
                 _, d_generated = self.discriminator(xp.detach())
 
                 # TODO: Confirm that no unwanted gradient accumulation occurs
-                # L_prior = self.kl_loss(mu, logvar)
-                # L_llike = self.loss_llike(dl_original, dl_recon)
-                # L_generator = self.loss_gan_gen(d_recon, d_generated)
-                # L_discriminator = self.loss_gan_dis(d_original, d_recon, d_generated)
+                L_prior = self.kl_loss(mu, logvar)
+                L_llike = self.loss_llike(dl_original, dl_recon)
+                L_generator = self.loss_gan_gen(d_recon, d_generated)
+                L_discriminator = self.loss_gan_dis(d_original, d_recon, d_generated)
 
-                # L_encoder = L_prior + L_llike
-                # L_decoder = self.gamma * L_llike + L_generator
+                L_encoder = L_prior + L_llike
+                L_decoder = self.gamma * L_llike + L_generator
 
                 self.optimEnc.zero_grad()
-                L_encoder = self.kl_loss(mu, logvar) + self.loss_llike(dl_original, dl_recon)
+                #L_encoder = self.kl_loss(mu, logvar) + self.loss_llike(dl_original, dl_recon)
                 L_encoder.backward(retain_graph=True)
                 self.optimEnc.step()
                 l_enc += L_encoder.item()
 
                 self.optimDec.zero_grad()
-                L_decoder = self.gamma * self.loss_llike(dl_original, dl_recon) + self.loss_gan_gen(d_recon, d_generated)
+                #L_decoder = self.gamma * self.loss_llike(dl_original, dl_recon) + self.loss_gan_gen(d_recon, d_generated)
                 L_decoder.backward(retain_graph=True)
                 self.optimDec.step()
                 l_dec += L_decoder.item()
 
                 self.optimDis.zero_grad()
-                L_discriminator = self.loss_gan_dis(d_original, d_recon, d_generated)
-                L_discriminator.backward(retain_graph=True)
+                #L_discriminator = self.loss_gan_dis(d_original, d_recon, d_generated)
+                L_discriminator.backward()
                 self.optimDis.step()
                 l_dis = L_discriminator.item()
             
